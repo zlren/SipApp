@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<sip-app>
+	<!-- Archetype Created SIP Application -->
+	<app-name>NeiWaiTong</app-name>
+	
+	<session-config>
+		<session-timeout>0</session-timeout>
+	</session-config>
+
+	<servlet-selection>
+		<main-servlet>
+			NeiWaiTong
+		</main-servlet>
+	</servlet-selection>
+
+	<servlet>
+		<servlet-name>NeiWaiTong</servlet-name>
+		<servlet-class>
+			com.zczg.app.SipApp
+		</servlet-class>
+		<load-on-startup>1</load-on-startup>
+	</servlet>
+
+	<listener>
+		<listener-class>
+			com.zczg.app.SipApp
+		</listener-class>
+	</listener>
+</sip-app>

@@ -1,0 +1,40 @@
+
+<html>
+	<head>
+		<title>会议系统</title>
+		<script type="text/javascript" src="js/jquery.min.js"></script>
+	</head>
+	<body>
+		<h1>会议系统欢迎界面！</h1>
+		<h3>当前会议详情</h3>
+		当前共有<span id="confNum"></span>个会议在进行
+		
+	</body>
+	<script>
+		function getParts() {
+	       $.ajax({
+		     	method: 'GET',
+		     	url: 'home',
+		     	contentType: 'application/json', dataType: 'json',
+		     	success: function (res) {
+		     		/* console.log(res); */
+		     		
+		     		$("#confNum").html(res.num); // 会议个数
+		     		
+/* 		     		if (res.num > 0) {
+		     			for(int i = 0; i < res.num; i ++) { // 遍历会议
+		     				res.data[i].confName; // 第i个会议的会议名称
+		     				res.data[i].num // 第i个会议的会议人数
+		     				for(int j = 0; j < res.data[i].num; j ++) { // 遍历第i个会议的成员
+		     					res.data[i].data[j].name;
+		     					res.data[i].data[j].muted;
+		     				}
+		     			}
+		     		} */
+				}
+			});
+		}
+		
+	    setInterval("getParts()",1000);
+	</script>
+</html>
