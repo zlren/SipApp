@@ -221,15 +221,23 @@ public class SipApp extends SipServlet implements TimerListener {
 				logger.info("User " + fromName + " is not registered");
 				return;
 			}
+			
+			// 拨打自己，禁止
+			if (fromName.equals(toName)) {
+				request.createResponse(SipServletResponse.SC_UNAUTHORIZED).send();
+				logger.info("不能拨打自己");
+				return;
+			}
 
+			// 想创建预约会议，但是创建者并不在此预约会议的成员列表中
 			if (ConfData.isPreConf(toName) && users.get(toName) == null
 					&& !ConfData.preConfMap.get(toName).contains(fromName)) {
-				// 想创建预约会议，但是创建者并不在此预约会议的成员列表中
 				request.createResponse(SipServletResponse.SC_FORBIDDEN).send();
 				logger.info("创建者" + fromName + "并不在预编程会议" + toName + "的成员列表中");
 
 				return;
 			}
+			
 
 			// 到这之后，fromUser一定是在线状态
 			session.setAttribute("CUR_INVITE", request);
@@ -238,7 +246,8 @@ public class SipApp extends SipServlet implements TimerListener {
 			if (fromUser.realUser.containsKey(toName)) {
 
 				logger.info("Exist call from " + fromName + " to " + toName);
-				// 从fromUser的realUser
+				
+				// 从fromUser的realUser中取出toName对应的真实toName
 				toName = fromUser.realUser.get(toName);
 				toUser = users.get(toName);
 
@@ -982,79 +991,87 @@ public class SipApp extends SipServlet implements TimerListener {
 	 */
 	public void timeout(ServletTimer st) {
 		
+		logger.info("进入超时逻辑");
+		
 		// 定时器置于被叫的session中
-
-		logger.info("超时了超时了！！！！！！！！！！！！！！！");
-		final SipServletRequest request = (SipServletRequest) st.getInfo();
+		final SipServletRequest calleeRequest = (SipServletRequest) st.getInfo();
 
 		// 超时转时的session是被叫的session
 		// 所以从request里面取出的session的变量名叫做linkedSession
-		SipSession linkedSession = request.getSession();
-		setLock(linkedSession);
+		SipSession calleeSession = calleeRequest.getSession();
+		setLock(calleeSession);
 
 		try {
 			// 被叫的信息
-			String fromName = ((request.getFrom().getURI().toString()).split("[:@]"))[1];
-			SipUser fromUser = users.get(fromName);
+			String calleeName = ((calleeRequest.getFrom().getURI().toString()).split("[:@]"))[1];
+			SipUser calleeUser = users.get(calleeName);
 			
 			// 主叫的信息
-			String toName = fromUser.realUser.get("toName");
-			SipUser toUser = users.get(toName);
+			// 这里为什么是这种形式的去拿主叫的信息呢？
+			// String toName = fromUser.realUser.get("toName");
+			String callerName = (String) calleeSession.getAttribute("OPPO");
+			SipUser callerUser = users.get(callerName);
 
 			// 被叫的状态是INIT_BRIDGE，说明是主叫呼叫被叫，被叫长时间未接听
-			if (fromUser.compareState(toName, SipUser.INIT_BRIDGE)) {
-				logger.info("被叫长时间未接，考虑超时转接");
+			if (calleeUser.compareState(callerName, SipUser.INIT_BRIDGE)) {
 				
-				String forwardName = toUser.preforwardTimeout;
+				logger.info("被叫: " + calleeName + "长时间未接，考虑超时转接");
+				
+				String forwardName = calleeUser.preforwardTimeout;
 				SipUser forwardUser = users.get(forwardName);
+				
+				logger.info("超时转接对象是：" + forwardName);
 
-				SipSession session = getLinkedSession(toName, fromName);
-				SipServletRequest linkedInv = (SipServletRequest) linkedSession.getAttribute("CUR_INVITE");
-				toUser.setState(fromName, SipUser.END);
-				linkedInv.createCancel().send();
-				releaseSession(linkedSession);
+				// 找到主叫中，用于和被叫沟通的那个session
+				SipSession callerSession = getLinkedSession(callerName, calleeName);
+				// 主叫中用户和被叫沟通的session的状态设置为END
+				callerUser.setState(calleeName, SipUser.END);
+				
+				// linked标识的是超时的被叫
+				SipServletRequest calleeInvite = (SipServletRequest) calleeSession.getAttribute("CUR_INVITE");
+				calleeInvite.createCancel().send();
+				releaseSession(calleeSession);
 
-				if (forwardUser.isBusy()) {
-					SipServletRequest initInv = (SipServletRequest) session.getAttribute("CUR_INVITE");
-					fromUser.setState(toName, SipUser.END);
-					initInv.createResponse(SipServletResponse.SC_BUSY_HERE).send();
-					logger.info("Forward is busy, release dialog");
+				SipServletRequest callerInvite = (SipServletRequest) callerSession.getAttribute("CUR_INVITE");
+				
+				// 如果转接被叫不在线
+				if (forwardUser == null) {
+					callerInvite.createResponse(SipServletResponse.SC_NOT_FOUND).send();
+					logger.info("超时转接对象不在线");
+				} else if (forwardUser.isBusy()) {
+					callerInvite.createResponse(SipServletResponse.SC_BUSY_HERE).send();
+					logger.info("超时转接对象忙！！");
 				} else {
-					Address to = sipFactory.createAddress("sip:" + toUser.name + "@" + toUser.ip + ":" + toUser.port);
+					Address to = sipFactory.createAddress("sip:" + forwardName + "@" + forwardUser.ip + ":" + forwardUser.port);
 					Address from = sipFactory
-							.createAddress("sip:" + fromName + "@" + cur_env.getSettings().get("realm") + ":5080");
+							.createAddress("sip:" + callerName + "@" + cur_env.getSettings().get("realm") + ":5080");
 
-					SipServletRequest invite = sipFactory.createRequest(request.getApplicationSession(), "INVITE", from,
+					SipServletRequest inviteForForwardUser = sipFactory.createRequest(sipFactory.createApplicationSession(), "INVITE", from,
 							to);
 
-					if (request.getHeader(SUPPORT_HEADER) != null) {
-						invite.setHeader(SUPPORT_HEADER, request.getHeader(SUPPORT_HEADER));
+
+					if (callerInvite.getHeader(SUPPORT_HEADER) != null) {
+						inviteForForwardUser.setHeader(SUPPORT_HEADER, callerInvite.getHeader(SUPPORT_HEADER));
 					}
-					invite.setRequestURI(toUser.contact.getURI());
+					inviteForForwardUser.setRequestURI(callerUser.contact.getURI());
 
-					linkedSession = invite.getSession();
-					shareLock(session, linkedSession);
+					SipSession forwardUserSession = inviteForForwardUser.getSession();
+					shareLock(callerSession, forwardUserSession);
 
-					linkedSession.setAttribute("CUR_INVITE", invite);
-					linkedSession.setAttribute("USER", forwardName);
-					linkedSession.setAttribute("OPPO", fromName);
-					session.setAttribute("OPPO", forwardName);
+					forwardUserSession.setAttribute("CUR_INVITE", inviteForForwardUser);
+					forwardUserSession.setAttribute("USER", forwardName);
+					forwardUserSession.setAttribute("OPPO", callerName);
 
-					fromUser.realUser.put(toName, forwardName);
-					fromUser.realUser.put(forwardName, toName);
-					forwardUser.realUser.put(fromName, fromName);
+					forwardUser.setState(callerName, SipUser.INIT_BRIDGE);
+					inviteForForwardUser.send();
 
-					fromUser.setState(forwardName, SipUser.WAITING_FOR_BRIDGE);
-					forwardUser.setState(fromName, SipUser.INIT_BRIDGE);
-					invite.send();
-
-					logger.info("Forward to " + forwardName);
+					logger.info("转接到" + forwardName);
 				}
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
-			setUnLock(linkedSession);
+			setUnLock(calleeSession);
 		}
 	}
 
