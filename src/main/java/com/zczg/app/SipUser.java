@@ -150,6 +150,7 @@ public class SipUser implements Comparable<SipUser> {
 				session.setAttribute("STATE", "START");
 
 			System.out.println("change from " + sessions.get(_name).getAttribute("STATE") + " to " + state);
+			
 			sessions.get(_name).setAttribute("STATE", state);
 
 			if (state.equals(END) || state.equals(IDLE) || state.equals(HOLDON_HOST)) {

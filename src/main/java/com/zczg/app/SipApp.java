@@ -128,8 +128,9 @@ public class SipApp extends SipServlet implements TimerListener {
 
 	@Override
 	protected void doRegister(SipServletRequest req) throws ServletException, IOException {
-		logger.info("Received register request: " + req.getTo());
-		logger.info(req.toString());
+		
+//		logger.info("Received register request: " + req.getTo());
+//		logger.info(req.toString());
 
 		String from = req.getFrom().getURI().toString();
 		String contact = req.getHeader("Contact");
@@ -221,7 +222,7 @@ public class SipApp extends SipServlet implements TimerListener {
 				logger.info("User " + fromName + " is not registered");
 				return;
 			}
-			
+
 			// 拨打自己，禁止
 			if (fromName.equals(toName)) {
 				request.createResponse(SipServletResponse.SC_UNAUTHORIZED).send();
@@ -237,16 +238,16 @@ public class SipApp extends SipServlet implements TimerListener {
 
 				return;
 			}
-			
 
 			// 到这之后，fromUser一定是在线状态
 			session.setAttribute("CUR_INVITE", request);
+			session.setAttribute("NOT_FOUND", request.createResponse(SipServletResponse.SC_NOT_FOUND));
 
 			// 考虑前转和忙转，确定toName
 			if (fromUser.realUser.containsKey(toName)) {
 
 				logger.info("Exist call from " + fromName + " to " + toName);
-				
+
 				// 从fromUser的realUser中取出toName对应的真实toName
 				toName = fromUser.realUser.get(toName);
 				toUser = users.get(toName);
@@ -464,8 +465,9 @@ public class SipApp extends SipServlet implements TimerListener {
 					toUser.setState(fromName, SipUser.INIT_BRIDGE);
 
 					session.setAttribute("MEDIA_SESSION", mediaSession);
-					linkedSession.setAttribute("MEDIA_SESSION", mediaSession);
+					// session.setAttribute("CUR_INVITE", request); 前面已经放过了
 
+					linkedSession.setAttribute("MEDIA_SESSION", mediaSession);
 					linkedSession.setAttribute("CUR_INVITE", invite);
 					linkedSession.setAttribute("USER", toName);
 					linkedSession.setAttribute("OPPO", fromName);
@@ -983,16 +985,15 @@ public class SipApp extends SipServlet implements TimerListener {
 
 	}
 
-
 	/**
 	 * 实现了TimerListener接口，实现了接口中的方法
 	 * 
 	 * 超时前转以及其余超时情况处理
 	 */
 	public void timeout(ServletTimer st) {
-		
+
 		logger.info("进入超时逻辑");
-		
+
 		// 定时器置于被叫的session中
 		final SipServletRequest calleeRequest = (SipServletRequest) st.getInfo();
 
@@ -1002,38 +1003,42 @@ public class SipApp extends SipServlet implements TimerListener {
 		setLock(calleeSession);
 
 		try {
-			// 被叫的信息
-			String calleeName = ((calleeRequest.getFrom().getURI().toString()).split("[:@]"))[1];
+			// 被叫的信息 这里从to字段取值
+			String calleeName = ((calleeRequest.getTo().getURI().toString()).split("[:@]"))[1];
 			SipUser calleeUser = users.get(calleeName);
-			
+
+			logger.info("被叫是：" + calleeName);
+
 			// 主叫的信息
 			// 这里为什么是这种形式的去拿主叫的信息呢？
 			// String toName = fromUser.realUser.get("toName");
 			String callerName = (String) calleeSession.getAttribute("OPPO");
 			SipUser callerUser = users.get(callerName);
 
+			logger.info("主叫是：" + callerName);
+
 			// 被叫的状态是INIT_BRIDGE，说明是主叫呼叫被叫，被叫长时间未接听
 			if (calleeUser.compareState(callerName, SipUser.INIT_BRIDGE)) {
-				
+
 				logger.info("被叫: " + calleeName + "长时间未接，考虑超时转接");
-				
+
 				String forwardName = calleeUser.preforwardTimeout;
 				SipUser forwardUser = users.get(forwardName);
-				
+
 				logger.info("超时转接对象是：" + forwardName);
 
 				// 找到主叫中，用于和被叫沟通的那个session
-				SipSession callerSession = getLinkedSession(callerName, calleeName);
+				SipSession callerSession = getLinkedSession(calleeName, callerName);
 				// 主叫中用户和被叫沟通的session的状态设置为END
 				callerUser.setState(calleeName, SipUser.END);
-				
+
 				// linked标识的是超时的被叫
 				SipServletRequest calleeInvite = (SipServletRequest) calleeSession.getAttribute("CUR_INVITE");
 				calleeInvite.createCancel().send();
-				releaseSession(calleeSession);
+				// releaseSession(calleeSession); 发送cancel后，收到ok回应会释放
 
 				SipServletRequest callerInvite = (SipServletRequest) callerSession.getAttribute("CUR_INVITE");
-				
+
 				// 如果转接被叫不在线
 				if (forwardUser == null) {
 					callerInvite.createResponse(SipServletResponse.SC_NOT_FOUND).send();
@@ -1043,17 +1048,18 @@ public class SipApp extends SipServlet implements TimerListener {
 					logger.info("超时转接对象忙！！");
 				} else {
 					Address to = sipFactory.createAddress("sip:" + forwardName + "@" + forwardUser.ip + ":" + forwardUser.port);
-					Address from = sipFactory
-							.createAddress("sip:" + callerName + "@" + cur_env.getSettings().get("realm") + ":5080");
+					Address from = sipFactory.createAddress(callerUser.sipadd + ":5080");
 
-					SipServletRequest inviteForForwardUser = sipFactory.createRequest(sipFactory.createApplicationSession(), "INVITE", from,
-							to);
-
+					SipServletRequest inviteForForwardUser = sipFactory
+							.createRequest(sipFactory.createApplicationSession(), "INVITE", from, to);
 
 					if (callerInvite.getHeader(SUPPORT_HEADER) != null) {
 						inviteForForwardUser.setHeader(SUPPORT_HEADER, callerInvite.getHeader(SUPPORT_HEADER));
 					}
-					inviteForForwardUser.setRequestURI(callerUser.contact.getURI());
+//					inviteForForwardUser.setRequestURI(callerUser.contact.getURI());
+					
+//					callerSession.setAttribute("USER", "");
+//					callerSession.setAttribute("OPPO", "");
 
 					SipSession forwardUserSession = inviteForForwardUser.getSession();
 					shareLock(callerSession, forwardUserSession);
@@ -1061,6 +1067,9 @@ public class SipApp extends SipServlet implements TimerListener {
 					forwardUserSession.setAttribute("CUR_INVITE", inviteForForwardUser);
 					forwardUserSession.setAttribute("USER", forwardName);
 					forwardUserSession.setAttribute("OPPO", callerName);
+
+					// !!
+					callerUser.realUser.put(calleeName, forwardName);
 
 					forwardUser.setState(callerName, SipUser.INIT_BRIDGE);
 					inviteForForwardUser.send();
@@ -1135,10 +1144,12 @@ public class SipApp extends SipServlet implements TimerListener {
 									// 主叫发出invite邀请，媒体服务器处理完主叫invite中的sdp的时候
 
 									// 这个invite是在处理主叫的invite的时候，制作的向被叫发送的invite
-									SipServletRequest inviteForCallee = (SipServletRequest) linkedSession.getAttribute("CUR_INVITE");
+									SipServletRequest inviteForCallee = (SipServletRequest) linkedSession
+											.getAttribute("CUR_INVITE");
 									if (inviteForCallee != null) {
 
-										SipServletResponse responOKforCaller = inv.createResponse(SipServletResponse.SC_OK);
+										SipServletResponse responOKforCaller = inv
+												.createResponse(SipServletResponse.SC_OK);
 										byte[] sdp = event.getMediaServerSdp(); // 媒体服务器的SDP
 										responOKforCaller.setContent(sdp, "application/sdp");
 										responOKforCaller.getSession().setAttribute("PREPARE_OK", responOKforCaller);
@@ -1152,11 +1163,9 @@ public class SipApp extends SipServlet implements TimerListener {
 										generateSDP(linkedSession);
 
 										logger.info("Start Timer");
-										
+
 										ServletTimer st = timerService.createTimer(
-												inviteForCallee.getApplicationSession(), 
-												10000,
-												false, 
+												inviteForCallee.getApplicationSession(), 10000, false,
 												(Serializable) inviteForCallee);
 
 										// 定时器放在了linkedSession中
@@ -1199,7 +1208,7 @@ public class SipApp extends SipServlet implements TimerListener {
 							byte[] sdp = event.getMediaServerSdp();
 							inv.setContent(sdp, "application/sdp");
 							inv.send();
-							
+
 						} else if (fromUser.compareState(toName, SipUser.ANSWER_BRIDGE)) { //
 
 							NetworkConnection conn1 = (NetworkConnection) sipSession.getAttribute("NETWORK_CONNECTION");
