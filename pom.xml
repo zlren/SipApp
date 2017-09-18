@@ -98,7 +98,7 @@
 	</dependencies>
 
 	<build>
-		<finalName>NeiWaiTong</finalName>
+		<finalName>SipApp</finalName>
 
 		<resources>
 			<resource>

@@ -2,7 +2,7 @@
 
 <sip-app>
 	<!-- Archetype Created SIP Application -->
-	<app-name>NeiWaiTong</app-name>
+	<app-name>SipApp</app-name>
 	
 	<session-config>
 		<session-timeout>0</session-timeout>
@@ -10,12 +10,12 @@
 
 	<servlet-selection>
 		<main-servlet>
-			NeiWaiTong
+			SipApp
 		</main-servlet>
 	</servlet-selection>
 
 	<servlet>
-		<servlet-name>NeiWaiTong</servlet-name>
+		<servlet-name>SipApp</servlet-name>
 		<servlet-class>
 			com.zczg.app.SipApp
 		</servlet-class>
