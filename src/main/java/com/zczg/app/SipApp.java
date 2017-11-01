@@ -18,6 +18,7 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.sip.*;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.Serializable;
 import java.net.URI;
 import java.util.HashMap;
@@ -68,23 +69,24 @@ public class SipApp extends SipServlet implements TimerListener {
         sipFactory = (SipFactory) getServletContext().getAttribute(SIP_FACTORY);
         timerService = (TimerService) getServletContext().getAttribute(TIMER_SERVICE);
 
-        Properties propConf = new Properties();
+        Properties conferenceProperties = new Properties();
         try {
-            propConf.load(this.getClass().getResourceAsStream("/config.properties"));
+            InputStream resourceAsStream = JDBCUtils.class.getClassLoader().getResourceAsStream("conference.properties");
+            conferenceProperties.load(resourceAsStream);
         } catch (IOException e) {
             e.printStackTrace();
         }
 
-        String serverAddress = propConf.getProperty("jboss.bind.address");
+        String serverAddress = MediaConf.serverAddr;
         LOCAL_ADDRESS = serverAddress;
         PEER_ADDRESS = serverAddress;
 
-        CA_PORT = propConf.getProperty("ca.port");
-        MGW_PORT = propConf.getProperty("mgw.port");
+        CA_PORT = "2722";
+        MGW_PORT = "2427";
 
         profMain = new Properties();
 
-        profMain.setProperty(MediaConf.MGCP_STACK_NAME, "SipServlets");
+        profMain.setProperty(MediaConf.MGCP_STACK_NAME, "SipApp");
         profMain.setProperty(MediaConf.MGCP_PEER_IP, PEER_ADDRESS);
         profMain.setProperty(MediaConf.MGCP_PEER_PORT, MGW_PORT);
 
@@ -97,15 +99,17 @@ public class SipApp extends SipServlet implements TimerListener {
             logger.info("started MGCP Stack on " + LOCAL_ADDRESS + " and port " + CA_PORT);
 
             // FIXME 初始化ConfData
-            ConfData.init(propConf);
+            ConfData.init(conferenceProperties);
 
         } catch (Exception e) {
             logger.error("couldn't start the underlying MGCP Stack", e);
         }
 
-        // new Shower(users).start();
+        Map<String, Object> map = JDBCUtils.queryForMap("select * from p2puser");
+        logger.info("共有 " + map.size() + " 个用户");
+        logger.info("ip地址为: " + MediaConf.serverAddr);
 
-        logger.info("Init SipApp");
+        // new Shower(users).start();
     }
 
     @Override
@@ -1143,7 +1147,8 @@ public class SipApp extends SipServlet implements TimerListener {
                                                 .createResponse(SipServletResponse.SC_OK);
                                         byte[] sdp = event.getMediaServerSdp(); // 媒体服务器的SDP
                                         responseOkForCaller.setContent(sdp, "application/sdp");
-                                        responseOkForCaller.getSession().setAttribute("PREPARE_OK", responseOkForCaller);
+                                        responseOkForCaller.getSession().setAttribute("PREPARE_OK",
+                                                responseOkForCaller);
                                         fromUser.setState(toName, SipUser.WAITING_FOR_BRIDGE);
 
                                         // 这句话向被叫发出的invite邀请是没有sdp的

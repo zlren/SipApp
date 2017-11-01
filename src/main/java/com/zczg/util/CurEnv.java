@@ -1,78 +1,92 @@
 package com.zczg.util;
 
+import org.apache.log4j.Logger;
+
+import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
-
-import org.apache.log4j.Logger;
+import java.util.Properties;
 
 public class CurEnv {
-	private Map<String, String> settings;
-	private Map<String, Integer> settingsInt;
-	private Map<String, Object> temp;
-	private static Logger logger = Logger.getLogger(CurEnv.class);
+    private Map<String, String> settings;
+    private Map<String, Integer> settingsInt; // 没有用到
+    private Map<String, Object> temp;
+    private static Logger logger = Logger.getLogger(CurEnv.class);
 
-	public CurEnv() {
-		Para tp = new Para();
-		settings = tp.getParaPair("sysstr", 0, 1);
-//		settingsInt = tp.getParaPairInt("sysint", 0, 1);
-		temp = new HashMap<String, Object>();
-	}
+    public CurEnv() {
+        Para tp = new Para();
 
-	public String myMD5(String md5) {
-		try {
-			MessageDigest md = MessageDigest.getInstance("MD5");
-			byte[] arr = md.digest(md5.getBytes());
-			StringBuffer sb = new StringBuffer();
+        Properties envProperties = new Properties();
+        try {
+            envProperties.load(this.getClass().getResourceAsStream("/env.properties"));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
-			for (int i = 0; i < arr.length; i++) {
-				sb.append(Integer.toHexString(arr[i] & 0xFF | 0x100).substring(1, 3));
-			}
+        settings = new HashMap<String, String>();
+        settings.put("realm", envProperties.getProperty("realm"));
 
-			return sb.toString();
-		} catch (NoSuchAlgorithmException e) {
 
-		}
+        // settings = tp.getParaPair("sysstr", 0, 1);
+        // settingsInt = tp.getParaPairInt("sysint", 0, 1);
+        temp = new HashMap<String, Object>();
+    }
 
-		return null;
-	}
+    public String myMD5(String md5) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] arr = md.digest(md5.getBytes());
+            StringBuffer sb = new StringBuffer();
 
-	public String myDigest(String username, String realm, String passwd, String nonce, String method, String url) {
-		logger.info("username:" + username);
-		logger.info("realm:" + realm);
-		logger.info("passwd:" + passwd);
-		logger.info("nonce:" + nonce);
-		logger.info("method:" + method);
-		logger.info("url:" + url);
+            for (int i = 0; i < arr.length; i++) {
+                sb.append(Integer.toHexString(arr[i] & 0xFF | 0x100).substring(1, 3));
+            }
 
-		String secret = myMD5(username + ":" + realm + ":" + passwd);
-		String data = nonce + ":" + myMD5(method + ":" + url);
-		return myMD5(secret + ":" + data);
-	}
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
 
-	public Map<String, String> getSettings() {
-		return settings;
-	}
+        }
 
-	public void setSettings(Map<String, String> settings) {
-		this.settings = settings;
-	}
+        return null;
+    }
 
-	public Map<String, Integer> getSettingsInt() {
-		return settingsInt;
-	}
+    public String myDigest(String username, String realm, String passwd, String nonce, String method, String url) {
+        logger.info("username:" + username);
+        logger.info("realm:" + realm);
+        logger.info("passwd:" + passwd);
+        logger.info("nonce:" + nonce);
+        logger.info("method:" + method);
+        logger.info("url:" + url);
 
-	public void setSettingsInt(Map<String, Integer> settingsInt) {
-		this.settingsInt = settingsInt;
-	}
+        String secret = myMD5(username + ":" + realm + ":" + passwd);
+        String data = nonce + ":" + myMD5(method + ":" + url);
+        return myMD5(secret + ":" + data);
+    }
 
-	public Map<String, Object> getTemp() {
-		return temp;
-	}
+    public Map<String, String> getSettings() {
+        return settings;
+    }
 
-	public void setTemp(Map<String, Object> temp) {
-		this.temp = temp;
-	}
+    public void setSettings(Map<String, String> settings) {
+        this.settings = settings;
+    }
+
+    public Map<String, Integer> getSettingsInt() {
+        return settingsInt;
+    }
+
+    public void setSettingsInt(Map<String, Integer> settingsInt) {
+        this.settingsInt = settingsInt;
+    }
+
+    public Map<String, Object> getTemp() {
+        return temp;
+    }
+
+    public void setTemp(Map<String, Object> temp) {
+        this.temp = temp;
+    }
 
 }
