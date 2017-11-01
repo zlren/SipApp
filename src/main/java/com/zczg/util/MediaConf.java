@@ -1,7 +1,7 @@
 package com.zczg.util;
 
 public class MediaConf {
-	private static String serverAddr = "10.109.247.71";
+	private static String serverAddr = "10.109.246.71";
 
 	public static final String MGCP_STACK_NAME = "mgcp.stack.name";
 	public static final String MGCP_STACK_IP = "mgcp.server.address";
