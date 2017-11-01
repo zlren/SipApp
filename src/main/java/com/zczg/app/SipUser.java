@@ -180,7 +180,16 @@ public class SipUser implements Comparable<SipUser> {
     }
 
     public boolean isBusy() {
-        return busy;
+
+        for (Map.Entry<String, SipSession> entry : this.sessions.entrySet()) {
+            if (entry.getValue().equals(SipUser.CALLING)) {
+                return true;
+            }
+        }
+
+        return false;
+
+        // return busy;
     }
 
     public SipUser getAvaliable(String _name) {

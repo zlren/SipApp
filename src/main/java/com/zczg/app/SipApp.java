@@ -20,7 +20,10 @@ import javax.servlet.sip.*;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class SipApp extends SipServlet implements TimerListener {
@@ -314,7 +317,16 @@ public class SipApp extends SipServlet implements TimerListener {
                     if (toUser.isBusy()) {
                         // 且主叫优先级高于被叫的通话对象
                         // 强拆强插
-                        if (fromUser.compareTo(users.get(toUser.oppo)) < 0) {
+
+                        String theUserNameWhoIsCallingWithTheCallee = "";
+                        for (Map.Entry<String, SipSession> entry : toUser.sessions.entrySet()) {
+                            if (entry.getValue().equals(SipUser.CALLING)) {
+                                theUserNameWhoIsCallingWithTheCallee = entry.getKey();
+                            }
+                        }
+
+
+                        if (fromUser.compareTo(users.get(theUserNameWhoIsCallingWithTheCallee)) < 0) {
                             // // 强拆强插逻辑
                             // fromUser.sessions.put(toName, session);
                             // fromUser.setState(toName, SipUser.IDLE);
@@ -475,9 +487,11 @@ public class SipApp extends SipServlet implements TimerListener {
                 // re-invite怎么理解？这个re-invite是在什么情况下谁给谁发出的？
                 // A正在通话状态为CALLING，A按下保持键（暂停键）想保持这一路通话，发送了re-invite消息
                 if (fromUser.compareState(toName, SipUser.CALLING)) {
-                    logger.info("This is a re-invite for hold on");
+
+                    logger.info("这是一个用来呼叫保持的re-invite");
 
                     if (ConfData.isConf(toName)) {
+
                         // 保持一个会议
                         fromUser.setState(toName, SipUser.HOLDON_HOST);
                         SipConf sipConf = (SipConf) users.get(toName);
@@ -490,9 +504,10 @@ public class SipApp extends SipServlet implements TimerListener {
                         conn.release();
                         session.removeAttribute("NETWORK_CONNECTION");
 
-                        conn = createConnWithMS(session);
+                        createConnWithMS(session);
 
                     } else {
+
                         // FIXME 这句话会报空指针异常
                         SipSession linkedSession = toUser.sessions.get(fromName);
                         NetworkConnection conn1 = (NetworkConnection) session.getAttribute("NETWORK_CONNECTION");
@@ -516,11 +531,12 @@ public class SipApp extends SipServlet implements TimerListener {
                         session.removeAttribute("NETWORK_CONNECTION");
 
                         // 重新申请连接，申请好以后，判断session的状态为hold-host，发送ok消息
-                        conn1 = createConnWithMS(session);
+                        createConnWithMS(session);
                     }
 
-                    // fromUser的状态为holdon-host，fromUser是主动保持者，发送re-invite想要释放这个保持
+
                 } else if (fromUser.compareState(toName, SipUser.HOLDON_HOST)) {
+                    // fromUser的状态为holdon-host，fromUser是主动保持者，发送re-invite想要释放这个保持
 
                     if (ConfData.isConf(toName)) {
                         // 释放保持，恢复和会议的连接
@@ -550,6 +566,7 @@ public class SipApp extends SipServlet implements TimerListener {
                         session.removeAttribute("NETWORK_CONNECTION");
 
                         // 如果toUser的状态为HOLDON_GUEST
+                        // 那么可以重新通话
                         if (toUser.compareState(fromName, SipUser.HOLDON_GUEST)) {
                             toUser.setState(fromName, SipUser.CALLING);
                             releaseDialog(linkedSession, conn2);
@@ -560,12 +577,13 @@ public class SipApp extends SipServlet implements TimerListener {
                             conn2.join(Direction.DUPLEX, initMixer);
                         } else if (toUser.compareState(fromName, SipUser.HOLDON_HOST)) {
                             fromUser.setState(toName, SipUser.HOLDON_GUEST);
-                            conn1 = createConnWithMS(session);
+                            createConnWithMS(session);
                             runDialog(session, MediaConf.WELCOME_MSG);
                         }
                     }
 
                 } else if (fromUser.compareState(toName, SipUser.HOLDON_GUEST)) {
+                    logger.info("被保持者发送re-invite发起保持");
                     logger.info("This is a re-invite for guest to hold on");
                     NetworkConnection conn = (NetworkConnection) session.getAttribute("NETWORK_CONNECTION");
 
@@ -575,7 +593,8 @@ public class SipApp extends SipServlet implements TimerListener {
                     mediaSession.removeAttribute("SIP_SESSION" + conn.getURI());
                     conn.release();
                     session.removeAttribute("NETWORK_CONNECTION");
-                    conn = createConnWithMS(session);
+                    createConnWithMS(session);
+
                 } else {
                     request.createResponse(SipServletResponse.SC_SERVER_INTERNAL_ERROR).send();
                     logger.info("Not defined operation");
@@ -1228,7 +1247,7 @@ public class SipApp extends SipServlet implements TimerListener {
 
                             } else {
                                 // 主动保持通话者
-                                logger.info("receive response from MG for holdon invite");
+                                logger.info("用于呼叫保持的一方发送的re-invite收到媒体服务器回应");
 
                                 SipServletResponse resp = inv.createResponse(SipServletResponse.SC_OK);
                                 byte[] sdp = event.getMediaServerSdp();
@@ -1237,8 +1256,8 @@ public class SipApp extends SipServlet implements TimerListener {
                                 // FIXME
                                 // 这是什么情况##################################################################
                                 // A和B正在通话，A保持，这时候A重新申请conn前A的状态设置为了holdon-host
-                                // A想和B恢复通话，A恢复的时候，如果B是holdon-guest，那就可以直接恢复，申请conn前B的状态改为了calling，所以A看到B的状态为calling
-                                // ，自己的状态也是calling才对
+                                // A想和B恢复通话，A恢复的时候，如果B是holdon-guest，那就可以直接恢复
+                                // 申请conn前B的状态改为了calling，所以A看到B的状态为calling，自己的状态也是calling才对
                                 if (!ConfData.isConf(toName)) {
                                     if (toUser.compareState(fromName, SipUser.CALLING)) {
                                         fromUser.setState(toName, SipUser.CALLING);
@@ -1250,6 +1269,8 @@ public class SipApp extends SipServlet implements TimerListener {
                                 logger.info("send resp for holdon invite");
                             }
                         } else if (fromUser.compareState(toName, SipUser.HOLDON_GUEST)) {
+                            // 被保持者也主动发起保持
+                            logger.info("被保持者也主动发起保持申请");
                             logger.info("receive response from MG for holdon change to hold on guest");
                             SipServletResponse resp = inv.createResponse(SipServletResponse.SC_OK);
                             byte[] sdp = event.getMediaServerSdp();

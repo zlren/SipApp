@@ -10,7 +10,7 @@
 
 	<artifactId>com.zczg</artifactId>
 	<packaging>war</packaging>
-	<name>NeiWaiTong</name>
+	<name>SipApp</name>
 	
 	<properties>
 		<slf4j.version>1.7.9</slf4j.version>
