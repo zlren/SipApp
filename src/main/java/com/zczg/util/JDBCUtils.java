@@ -1,7 +1,7 @@
 package com.zczg.util;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import org.apache.log4j.Logger;
 
 import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
@@ -12,11 +12,11 @@ import java.util.*;
 
 public class JDBCUtils {
 
-    public static String DRIVER = "";
-    public static String URL = "";
-    public static String USER_NAME = "";
-    public static String PASSWORD = "";
-    private static Logger logger = LoggerFactory.getLogger(JDBCUtils.class);
+    private static String URL = "";
+    private static String USER_NAME = "";
+    private static String PASSWORD = "";
+
+    private static Logger logger = Logger.getLogger(JDBCUtils.class);
 
     static {
         try {
@@ -25,7 +25,7 @@ public class JDBCUtils {
             InputStream resourceAsStream = JDBCUtils.class.getClassLoader().getResourceAsStream("jdbc.properties");
             jdbcProperties.load(resourceAsStream);
 
-            DRIVER = jdbcProperties.getProperty("jdbc.driver");
+            String DRIVER = jdbcProperties.getProperty("jdbc.driver");
             URL = jdbcProperties.getProperty("jdbc.url");
             USER_NAME = jdbcProperties.getProperty("jdbc.username");
             PASSWORD = jdbcProperties.getProperty("jdbc.password");
@@ -33,8 +33,7 @@ public class JDBCUtils {
             Class.forName(DRIVER);
 
             logger.info("Successfully load database properties");
-        } catch (Exception e) {
-//			logger.error(e.getClass());
+        } catch (Exception ignored) {
         }
     }
 
@@ -49,8 +48,6 @@ public class JDBCUtils {
             con = DriverManager.getConnection(URL, USER_NAME, PASSWORD);
             logger.info("Successfully connect to the database: " + URL);
         } catch (SQLException e) {
-            // e.printStackTrace();
-//			logger.error(e.getCause());
         }
         return con;
     }

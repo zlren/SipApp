@@ -47,12 +47,6 @@ public class SipApp extends SipServlet implements TimerListener {
     private MediaSession mediaSession;
     private MsControlFactory msControlFactory;
 
-    private Properties profMain = null;
-    private static String LOCAL_ADDRESS = null;
-    private static String CA_PORT = null;
-    private static String PEER_ADDRESS = null;
-    private static String MGW_PORT = null;
-
     public SipApp() {
         logger.info("New SipApp Instance");
 
@@ -71,20 +65,21 @@ public class SipApp extends SipServlet implements TimerListener {
 
         Properties conferenceProperties = new Properties();
         try {
-            InputStream resourceAsStream = JDBCUtils.class.getClassLoader().getResourceAsStream("conference.properties");
+            InputStream resourceAsStream = JDBCUtils.class.getClassLoader().getResourceAsStream("conference" +
+                    ".properties");
             conferenceProperties.load(resourceAsStream);
         } catch (IOException e) {
             e.printStackTrace();
         }
 
         String serverAddress = MediaConf.serverAddr;
-        LOCAL_ADDRESS = serverAddress;
-        PEER_ADDRESS = serverAddress;
+        String LOCAL_ADDRESS = serverAddress;
+        String PEER_ADDRESS = serverAddress;
 
-        CA_PORT = "2722";
-        MGW_PORT = "2427";
+        String CA_PORT = "2722";
+        String MGW_PORT = "2427";
 
-        profMain = new Properties();
+        Properties profMain = new Properties();
 
         profMain.setProperty(MediaConf.MGCP_STACK_NAME, "SipApp");
         profMain.setProperty(MediaConf.MGCP_PEER_IP, PEER_ADDRESS);
@@ -115,16 +110,13 @@ public class SipApp extends SipServlet implements TimerListener {
     @Override
     protected void doRegister(SipServletRequest req) throws ServletException, IOException {
 
-//		logger.info("Received register request: " + req.getTo());
-//		logger.info(req.toString());
-
         String from = req.getFrom().getURI().toString();
         String contact = req.getHeader("Contact");
         String[] ss = contact.split("[@:;]");
         String username = ss[1];
         String ip = ss[2];
         String port = ss[3];
-        logger.info("Register User " + username + " ip " + ip + ":" + port);
+        logger.info("Register User [" + username + "] ip: " + ip + ":" + port);
 
         String auth = req.getHeader("Proxy-Authorization");
         if (auth == null) {
@@ -330,7 +322,6 @@ public class SipApp extends SipServlet implements TimerListener {
                             }
                         }
 
-
                         if (fromUser.compareTo(users.get(theUserNameWhoIsCallingWithTheCallee)) < 0) {
                             // // 强拆强插逻辑
                             // fromUser.sessions.put(toName, session);
@@ -403,6 +394,7 @@ public class SipApp extends SipServlet implements TimerListener {
                     }
 
                 }
+
                 // fromUser存储自己负责和toName交流的session
                 fromUser.sessions.put(toName, session);
                 // fromUser的状态设置为null
@@ -645,7 +637,6 @@ public class SipApp extends SipServlet implements TimerListener {
                 // }
 
             }
-            // }
         } catch (Exception e) {
             request.createResponse(SipServletResponse.SC_SERVER_INTERNAL_ERROR).send();
             e.printStackTrace();
@@ -681,7 +672,7 @@ public class SipApp extends SipServlet implements TimerListener {
             int signalIndex = messageContent.indexOf("Signal=");
 
             // deal with DTMF
-            if (messageContent != null && messageContent.length() > 0 && signalIndex != -1) {
+            if (messageContent.length() > 0 && signalIndex != -1) {
                 String signal = messageContent.substring("Signal=".length()).trim();
                 // signal是具体内容，只有1位
                 signal = signal.substring(0, 1);
@@ -740,7 +731,7 @@ public class SipApp extends SipServlet implements TimerListener {
                         st.cancel();
 
                     String cSeqValue = resp.getHeader("CSeq");
-                    if (cSeqValue.indexOf("INVITE") != -1) {
+                    if (cSeqValue.contains("INVITE")) {
                         if (fromUser.compareState(toName, SipUser.INIT_BRIDGE)) { // 这里是不是有问题
 
                             // 得到被叫回复的ok消息的sdp
@@ -792,7 +783,7 @@ public class SipApp extends SipServlet implements TimerListener {
             SipUser toUser = users.get(toName);
 
             // ACK is auto send by the container
-            if (session != null && session.isValid()) {
+            if (session.isValid()) {
                 ServletTimer st = (ServletTimer) session.getAttribute("TIMER");
                 if (st != null) {
                     st.cancel();
@@ -856,8 +847,8 @@ public class SipApp extends SipServlet implements TimerListener {
                                         SipUser memberUser = users.get(member);
                                         try {
                                             Address from = sipFactory.createAddress(sipConf.sipadd + ":5080");
-                                            Address to = sipFactory.createAddress(
-                                                    "sip:" + member + "@" + memberUser.ip + ":" + memberUser.port);
+                                            Address to = sipFactory.createAddress("sip:" + member + "@" + memberUser
+                                                    .ip + ":" + memberUser.port);
                                             SipServletRequest invite = sipFactory.createRequest(
                                                     sipFactory.createApplicationSession(), "INVITE", from, to);
 
@@ -886,9 +877,7 @@ public class SipApp extends SipServlet implements TimerListener {
                                 } else {
                                     logger.info(member + "不在线！");
                                 }
-
                             }
-
                         }
                     }
                 }
@@ -1031,6 +1020,7 @@ public class SipApp extends SipServlet implements TimerListener {
 
                 calleeUser.clean(callerName);
 
+                assert callerSession != null;
                 SipServletRequest callerInvite = (SipServletRequest) callerSession.getAttribute("CUR_INVITE");
 
                 // 如果转接被叫不在线
@@ -1079,7 +1069,7 @@ public class SipApp extends SipServlet implements TimerListener {
         }
     }
 
-    public NetworkConnection createConnWithMS(SipSession session) throws MsControlException, IOException {
+    private NetworkConnection createConnWithMS(SipSession session) throws MsControlException, IOException {
 
         SipServletRequest invite = (SipServletRequest) session.getAttribute("CUR_INVITE");
 
@@ -1157,7 +1147,7 @@ public class SipApp extends SipServlet implements TimerListener {
 
                                         generateSDP(linkedSession);
 
-                                        logger.info("Start Timer");
+                                        logger.info("启动计时器");
 
                                         ServletTimer st = timerService.createTimer(
                                                 inviteForCallee.getApplicationSession(), 10000, false,
@@ -1207,6 +1197,7 @@ public class SipApp extends SipServlet implements TimerListener {
                         } else if (fromUser.compareState(toName, SipUser.ANSWER_BRIDGE)) { //
 
                             NetworkConnection conn1 = (NetworkConnection) sipSession.getAttribute("NETWORK_CONNECTION");
+                            assert linkedSession != null;
                             NetworkConnection conn2 = (NetworkConnection) linkedSession.getAttribute
                                     ("NETWORK_CONNECTION");
 
@@ -1332,7 +1323,7 @@ public class SipApp extends SipServlet implements TimerListener {
     }
 
     /**
-     * 处理被叫回的200-ok中带的sdp
+     * 处理被叫回的200OK中带的sdp
      *
      * @param session
      * @param sdpAnswer
@@ -1407,20 +1398,20 @@ public class SipApp extends SipServlet implements TimerListener {
 
             String fromName = (String) session.getAttribute("USER");
             SipUser from = users.get(fromName);
-            SipUser to = users.get((String) session.getAttribute("OPPO"));
+            SipUser to = users.get(session.getAttribute("OPPO"));
             from.clean(to.name);
 
             // 修改适配conf
-            if (to != null && !ConfData.isConf(to.name)) {
+            if (!ConfData.isConf(to.name)) {
                 to.clean(from.name);
-            } else if (to != null && ConfData.isConf(to.name)) {
+            } else if (ConfData.isConf(to.name)) {
                 SipConf sipConf = (SipConf) users.get(to.name);
 
                 if (sipConf.memberMap.size() == 0) {
                     users.remove(sipConf.confKey);
                     logger.info("销毁会议");
-                } else if (fromName.equals(sipConf.host)) { // sipConf.memberMap.size()
-                    // > 0 &&
+                } else if (fromName.equals(sipConf.host)) {
+                    // sipConf.memberMap.size() > 0 &&
                     // 主持人退出会议，解散会议
                     logger.info("主持人退出会议");
                     Set<String> memberSet = sipConf.memberMap.keySet();
@@ -1475,7 +1466,7 @@ public class SipApp extends SipServlet implements TimerListener {
     class MyPlayerListener implements MediaEventListener<PlayerEvent> {
 
         public void onEvent(PlayerEvent event) {
-            log("Play terminated with: " + event);
+            logger.info("Play terminated with: " + event);
             // Release the call and terminate
             MediaSession mediaSession = event.getSource().getMediaSession();
             SipSession sipSession = (SipSession) mediaSession
@@ -1484,7 +1475,7 @@ public class SipApp extends SipServlet implements TimerListener {
         }
     }
 
-    protected void runDialog(SipSession sipSession, String src) {
+    private void runDialog(SipSession sipSession, String src) {
         URI prompt = URI.create(src);
         try {
             MediaGroup mg;
@@ -1508,10 +1499,10 @@ public class SipApp extends SipServlet implements TimerListener {
         }
     }
 
-    protected void terminate(SipSession sipSession, MediaSession mediaSession) {
+    private void terminate(SipSession sipSession, MediaSession mediaSession) {
         setLock(sipSession);
         try {
-            SipUser user = users.get(sipSession.getAttribute("USER"));
+            SipUser user = users.get(String.valueOf(sipSession.getAttribute("USER")));
             user.setState((String) sipSession.getAttribute("OPPO"), SipUser.END);
             sipSession.createRequest("BYE").send();
         } catch (Exception e) {

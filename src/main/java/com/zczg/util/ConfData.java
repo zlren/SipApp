@@ -1,67 +1,85 @@
 package com.zczg.util;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
 
 import org.apache.log4j.Logger;
 
+import java.util.*;
+
 public class ConfData {
 
-	private static Logger logger = Logger.getLogger(ConfData.class);
+    private static Logger logger = Logger.getLogger(ConfData.class);
 
-	public static Map<String, Set<String>> preConfMap; // 预编程会议成员列表
 
-	// 初始化关于会议相关的参数，从配置文件读取
-	public static void init(Properties propConf) {
+    public static Map<String, Set<String>> preConfMap; // 预编程会议成员列表
 
-		// 预编程会议列表
-		String[] preArray = propConf.getProperty("conf.pre.list").split(";");
-		ConfData.preConfMap = new HashMap<String, Set<String>>();
+    /**
+     * 初始化关于会议相关的参数，从配置文件读取
+     *
+     * @param propConf
+     */
+    public static void init(Properties propConf) {
 
-		for (String p : preArray) {
-			int k = p.indexOf(":");
-			String confKey = p.substring(0, k);
-			String members = p.substring(k + 1, p.length());
-			Set<String> memberSet = new HashSet<String>();
-			for (String m : members.split("%")) {
-				memberSet.add(m);
-			}
+        // 预编程会议列表
+        String[] preArray = propConf.getProperty("conf.pre.list").split(";");
+        ConfData.preConfMap = new HashMap<String, Set<String>>();
 
-			ConfData.preConfMap.put(confKey, memberSet);
-		}
+        for (String p : preArray) {
+            int k = p.indexOf(":");
+            String confKey = p.substring(0, k);
+            String members = p.substring(k + 1, p.length());
+            Set<String> memberSet = new HashSet<String>();
+            Collections.addAll(memberSet, members.split("%"));
 
-		logger.info("pre conf list :");
-		for (String key : preConfMap.keySet()) {
-			System.out.print(key + ": ");
+            ConfData.preConfMap.put(confKey, memberSet);
+        }
 
-			Set<String> set = preConfMap.get(key);
-			for (String s : set) {
-				System.out.print(s + " ");
-			}
-			System.out.println();
-		}
-	}
+        logger.info("pre conf list :");
+        for (String key : preConfMap.keySet()) {
+            System.out.print(key + ": ");
 
-	// 判断是否为预编程会议
-	public static boolean isPreConf(String confKey) {
-		if (confKey.length() == 4 && confKey.charAt(0) == '0') {
-			return true;
-		}
-		return false;
-	}
+            Set<String> set = preConfMap.get(key);
+            for (String s : set) {
+                System.out.print(s + " ");
+            }
+            System.out.println();
+        }
+    }
 
-	// 判断是否为可编程会议
-	public static boolean isFullConf(String confKey) {
-		if (confKey.length() == 4 && confKey.charAt(0) == '1') {
-			return true;
-		}
-		return false;
-	}
-	
-	public static boolean isConf(String confKey) {
-		return isPreConf(confKey) || isFullConf(confKey);
-	}
+
+    /**
+     * 判断是否为预编程会议
+     *
+     * @param confKey
+     * @return
+     */
+    public static boolean isPreConf(String confKey) {
+        if (confKey.length() == 4 && confKey.charAt(0) == '0') {
+            return true;
+        }
+        return false;
+    }
+
+
+    /**
+     * 判断是否为可编程会议
+     *
+     * @param confKey
+     * @return
+     */
+    public static boolean isFullConf(String confKey) {
+        if (confKey.length() == 4 && confKey.charAt(0) == '1') {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 判断是否为会议号
+     *
+     * @param confKey
+     * @return
+     */
+    public static boolean isConf(String confKey) {
+        return isPreConf(confKey) || isFullConf(confKey);
+    }
 }

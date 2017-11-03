@@ -100,7 +100,7 @@ ALL: ("SipApp","DAR:From", "ORIGINATING", "", "NO_ROUTE", "0")
 
 ### 4 部署并启动
 
-#### 4.1 启动 media server
+#### 4.1 启动 Media Server
 
 ```shell
 cd /root/mss-3.1.633-jboss-as-7.2.0.Final/mobicents-media-server/mms-server/bin
@@ -129,7 +129,19 @@ cd /root/mss-3.1.633-jboss-as-7.2.0.Final/bin
 ./standlone.sh
 ```
 
-
+>  附 change-ip-sip-servlet
+>
+> ```shell
+> echo "enter ip :"
+> read ip
+>
+> cd standalone/configuration/
+> sed -i "s/127.0.0.1/$ip/g" standalone-sip.xml standalone.xml
+> cd ../../
+>
+> cd mobicents-media-server/mms-server/deploy/
+> sed -i "s/127.0.0.1/$ip/g" server-beans.xml
+> ```
 
 
 

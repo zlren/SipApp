@@ -93,9 +93,14 @@ public class SipUser implements Comparable<SipUser> {
         users = null;
     }
 
-    // 这个地方应该是user1和user2去比，user1.compareTo(user2)，如果这个值小于0表示user1的优先级更高
-    // linkUser的value是优先级队列，在队列中插入元素<SipUser>的时候队列本身会根据元素的优先级在队列中排序，因此SipUser需要实现Comparable接口
-    // comparaTo就是在比较两个user的优先级的时候自动调用
+    /**
+     * 这个地方应该是user1和user2去比，user1.compareTo(user2)，如果这个值小于0表示user1的优先级更高
+     * linkUser的value是优先级队列，在队列中插入元素<SipUser>的时候队列本身会根据元素的优先级在队列中排序，因此SipUser需要实现Comparable接口
+     * comparaTo就是在比较两个user的优先级的时候自动调用
+     *
+     * @param other
+     * @return
+     */
     @Override
     public int compareTo(SipUser other) {
 
@@ -196,7 +201,8 @@ public class SipUser implements Comparable<SipUser> {
         if (linkUser.containsKey(_name)) {
             SipUser cur = linkUser.get(_name).peek();
 
-            // return cur; 为什么要这样写..######################
+            // return cur;
+            // 为什么要这样写..
             if (cur != null)
                 return cur;
             else

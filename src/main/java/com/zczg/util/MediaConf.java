@@ -14,8 +14,6 @@ public class MediaConf {
             InputStream resourceAsStream = JDBCUtils.class.getClassLoader().getResourceAsStream("env.properties");
             envProperties.load(resourceAsStream);
             serverAddr = envProperties.getProperty("realm");
-
-            System.out.println("ip地址为：" + serverAddr + "!!!");
         } catch (IOException e) {
             e.printStackTrace();
         }
