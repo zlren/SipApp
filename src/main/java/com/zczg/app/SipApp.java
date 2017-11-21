@@ -28,7 +28,7 @@ import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 
 
-public class SipApp extends SipServlet implements TimerListener {
+public class SipApp extends SipServlet implements TimerListener{
 
     private static final long serialVersionUID = 1L;
 

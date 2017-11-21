@@ -2,7 +2,6 @@ package com.zczg.app;
 
 import com.zczg.util.ConfData;
 import org.apache.log4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.media.mscontrol.MsControlException;
 import javax.media.mscontrol.join.Joinable.Direction;

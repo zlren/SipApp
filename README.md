@@ -2,6 +2,8 @@
 
 IP 地址：10.109.246.71
 
+- 物理机 105 上
+
 数据库：10.109.246.143
 
 ### 2 工程配置
@@ -20,11 +22,11 @@ IP 地址：10.109.246.71
 
 #### 3.2 配置 IP 地址
 
-```shell
+```bash
 vim /etc/sysconfig/network-scripts/ifcfg-ens3
 ```
 
-```shell
+```bash
 BOOTPROTO=static
 ONBOOT=yes
 
@@ -36,28 +38,28 @@ DNS1=10.3.9.4
 
 #### 3.3 关闭防火墙
 
-```shell
+```bash
 systemctl stop firewalld.service
 systemctl disable firewalld.service
 ```
 
 #### 3.4 基本组件
 
-```shell
+```bash
 yum -y install lrzsz vim unzip net-tools gcc kernel-devel make ncurses-devel
 ```
 
-#### 3.5 安装 tmux （可选）
+#### 3.5 安装 Tmux （可选）
 
 拷贝 `libevent-2.0.22-stable.tar.gz` 和 `tmux-2.1.tar.gz` 到 `/opt` 目录下
 
-```shell
+```bash
 tar -xvzf libevent-2.0.22-stable.tar.gz && cd libevent-2.0.22-stable
 ./configure --prefix=/usr/local
 make && make install
 ```
 
-```shell
+```bash
 cd ..
 tar -xvzf tmux-2.1.tar.gz && cd tmux-2.1
 LDFLAGS="-L/usr/local/lib -Wl,-rpath=/usr/local/lib" ./configure --prefix=/usr/local
@@ -66,28 +68,28 @@ make && make install
 
 #### 3.6 安装 JDK7
 
-```shell
+```bash
 rpm -ivh jdk-7u79-linux-x64.rpm
 java -version
 ```
 
-#### 3.7 安装 jboss
+#### 3.7 安装 JBoss
 
 将 `mss-3.1.633-jboss-as-7.2.0.Final.zip` 置于 `/root` 下
 
-```shell
+```bash
 unzip mss-3.1.633-jboss-as-7.2.0.Final.zip
 ```
 
 将 `change-ip-sip-servlet.sh` 置于 `mss-3.1.633-jboss-as-7.2.0.Final` 下，执行前赋予权限
 
-```shell
+```bash
 ./change-ip-sip-servlet
 ```
 
 #### 3.8 修改 dar 文件
 
-```shell
+```bash
 vim /root/mss-3.1.633-jboss-as-7.2.0.Final/standalone/configuration/dars/mobicents-dar.properties
 ```
 
@@ -102,9 +104,9 @@ ALL: ("SipApp","DAR:From", "ORIGINATING", "", "NO_ROUTE", "0")
 
 #### 4.1 启动 Media Server
 
-```shell
+```bash
 cd /root/mss-3.1.633-jboss-as-7.2.0.Final/mobicents-media-server/mms-server/bin
-chmod 777 run.sh
+chmod +x run.sh
 ./run.sh
 ```
 
@@ -112,38 +114,39 @@ chmod 777 run.sh
 
 maven 打包
 
-```shell
+```bash
 mvn clean package
 ```
 
 部署 war 包（在开发机上）
 
-```shell
+```sh
 scp ~/Documents/Eclipse/RestcommParent/sip-servlets-examples/SipApp/target/SipApp.war root@10.109.246.71:/root/mss-3.1.633-jboss-as-7.2.0.Final/standalone/deployments/
 ```
 
 启动
 
-```sh
+```bash
 cd /root/mss-3.1.633-jboss-as-7.2.0.Final/bin
 ./standlone.sh
 ```
 
 >  附 change-ip-sip-servlet
 >
-> ```shell
-> echo "enter ip :"
-> read ip
+>  ```bash
+>  echo "enter ip :"
+>  read ip
 >
-> cd standalone/configuration/
-> sed -i "s/127.0.0.1/$ip/g" standalone-sip.xml standalone.xml
-> cd ../../
+>  cd standalone/configuration/
+>  sed -i "s/127.0.0.1/$ip/g" standalone-sip.xml standalone.xml
+>  cd ../../
 >
-> cd mobicents-media-server/mms-server/deploy/
-> sed -i "s/127.0.0.1/$ip/g" server-beans.xml
-> ```
+>  cd mobicents-media-server/mms-server/deploy/
+>  sed -i "s/127.0.0.1/$ip/g" server-beans.xml
+>  ```
 
-
-
+>  附 x-Lite 的 SIP 账户配置
+>
+>  ![](https://ws1.sinaimg.cn/large/006tNc79ly1fliihsfthxj30i60h1wfy.jpg)
 
 
