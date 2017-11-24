@@ -28,7 +28,7 @@ import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 
 
-public class SipApp extends SipServlet implements TimerListener{
+public class SipApp extends SipServlet implements TimerListener {
 
     private static final long serialVersionUID = 1L;
 
@@ -974,6 +974,28 @@ public class SipApp extends SipServlet implements TimerListener{
     @Override
     protected void doMessage(SipServletRequest request) throws ServletException, IOException {
 
+        request.createResponse(SipServletResponse.SC_OK).send();
+
+        String fromName = ((request.getFrom().getURI().toString()).split("[:@]"))[1];
+        String toName = ((request.getTo().getURI().toString()).split("[:@]"))[1];
+
+        logger.error("MESSAGE from [" + fromName + "] to [" + toName + "]");
+        logger.error("Content: " + request.getContent());
+
+        SipUser toUser = users.get(toName);
+
+        // 对方不在线
+        if (toUser == null) {
+            request.createResponse(SipServletResponse.SC_NOT_FOUND).send();
+        } else {
+            // 对方在线
+            if (request.isInitial()) {
+                Proxy proxy = request.getProxy();
+                proxy.setRecordRoute(true);
+                proxy.setSupervised(true);
+                proxy.proxyTo(toUser.contact.getURI());
+            }
+        }
     }
 
     /**
